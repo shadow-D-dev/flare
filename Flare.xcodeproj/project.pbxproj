@@ -1,0 +1,323 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		F1A000000000000000000101 /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000201 /* AppDelegate.swift */; };
+		F1A000000000000000000102 /* FlareApplication.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000202 /* FlareApplication.swift */; };
+		F1A000000000000000000103 /* LauncherPanel.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000204 /* LauncherPanel.swift */; };
+		F1A000000000000000000104 /* LauncherWindowController.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000205 /* LauncherWindowController.swift */; };
+		F1A000000000000000000105 /* HotkeyManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000206 /* HotkeyManager.swift */; };
+		F1A000000000000000000106 /* ApplicationItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000207 /* ApplicationItem.swift */; };
+		F1A000000000000000000107 /* ApplicationIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000208 /* ApplicationIndexer.swift */; };
+		F1A000000000000000000108 /* ApplicationRowView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000209 /* ApplicationRowView.swift */; };
+		F1A000000000000000000109 /* ApplicationSearcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000210 /* ApplicationSearcher.swift */; };
+		F1A000000000000000000110 /* ApplicationSearcherTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000212 /* ApplicationSearcherTests.swift */; };
+		F1A000000000000000000111 /* ApplicationItem.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000207 /* ApplicationItem.swift */; };
+		F1A000000000000000000112 /* ApplicationSearcher.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000210 /* ApplicationSearcher.swift */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXFileReference section */
+		F1A000000000000000000200 /* Flare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = Flare.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		F1A000000000000000000201 /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		F1A000000000000000000202 /* FlareApplication.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FlareApplication.swift; sourceTree = "<group>"; };
+		F1A000000000000000000203 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		F1A000000000000000000204 /* LauncherPanel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherPanel.swift; sourceTree = "<group>"; };
+		F1A000000000000000000205 /* LauncherWindowController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherWindowController.swift; sourceTree = "<group>"; };
+		F1A000000000000000000206 /* HotkeyManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HotkeyManager.swift; sourceTree = "<group>"; };
+		F1A000000000000000000207 /* ApplicationItem.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationItem.swift; sourceTree = "<group>"; };
+		F1A000000000000000000208 /* ApplicationIndexer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIndexer.swift; sourceTree = "<group>"; };
+		F1A000000000000000000209 /* ApplicationRowView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationRowView.swift; sourceTree = "<group>"; };
+		F1A000000000000000000210 /* ApplicationSearcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearcher.swift; sourceTree = "<group>"; };
+		F1A000000000000000000211 /* FlareTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlareTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F1A000000000000000000212 /* ApplicationSearcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearcherTests.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXGroup section */
+		F1A000000000000000000300 = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000301 /* Flare */,
+				F1A000000000000000000308 /* FlareTests */,
+				F1A000000000000000000302 /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000301 /* Flare */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000303 /* App */,
+				F1A000000000000000000306 /* Models */,
+				F1A000000000000000000305 /* Services */,
+				F1A000000000000000000307 /* Views */,
+				F1A000000000000000000304 /* Window */,
+				F1A000000000000000000203 /* Info.plist */,
+			);
+			path = Flare;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000302 /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000200 /* Flare.app */,
+				F1A000000000000000000211 /* FlareTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000303 /* App */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000201 /* AppDelegate.swift */,
+				F1A000000000000000000202 /* FlareApplication.swift */,
+			);
+			path = App;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000304 /* Window */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000204 /* LauncherPanel.swift */,
+				F1A000000000000000000205 /* LauncherWindowController.swift */,
+			);
+			path = Window;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000305 /* Services */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000208 /* ApplicationIndexer.swift */,
+				F1A000000000000000000210 /* ApplicationSearcher.swift */,
+				F1A000000000000000000206 /* HotkeyManager.swift */,
+			);
+			path = Services;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000306 /* Models */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000207 /* ApplicationItem.swift */,
+			);
+			path = Models;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000307 /* Views */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000209 /* ApplicationRowView.swift */,
+			);
+			path = Views;
+			sourceTree = "<group>";
+		};
+		F1A000000000000000000308 /* FlareTests */ = {
+			isa = PBXGroup;
+			children = (
+				F1A000000000000000000212 /* ApplicationSearcherTests.swift */,
+			);
+			path = FlareTests;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		F1A000000000000000000400 /* Flare */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F1A000000000000000000601 /* Build configuration list for PBXNativeTarget "Flare" */;
+			buildPhases = (
+				F1A000000000000000000500 /* Sources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = Flare;
+			productName = Flare;
+			productReference = F1A000000000000000000200 /* Flare.app */;
+			productType = "com.apple.product-type.application";
+		};
+		F1A000000000000000000401 /* FlareTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = F1A000000000000000000602 /* Build configuration list for PBXNativeTarget "FlareTests" */;
+			buildPhases = (
+				F1A000000000000000000501 /* Sources */,
+			);
+			buildRules = ();
+			dependencies = ();
+			name = FlareTests;
+			productName = FlareTests;
+			productReference = F1A000000000000000000211 /* FlareTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		F1A000000000000000000001 /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastSwiftUpdateCheck = 1600;
+				LastUpgradeCheck = 1600;
+				TargetAttributes = {
+					F1A000000000000000000400 = {CreatedOnToolsVersion = 16.0; };
+					F1A000000000000000000401 = {CreatedOnToolsVersion = 16.0; };
+				};
+			};
+			buildConfigurationList = F1A000000000000000000600 /* Build configuration list for PBXProject "Flare" */;
+			compatibilityVersion = "Xcode 14.0";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (en, Base);
+			mainGroup = F1A000000000000000000300;
+			productRefGroup = F1A000000000000000000302 /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				F1A000000000000000000400 /* Flare */,
+				F1A000000000000000000401 /* FlareTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		F1A000000000000000000500 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F1A000000000000000000101 /* AppDelegate.swift in Sources */,
+				F1A000000000000000000102 /* FlareApplication.swift in Sources */,
+				F1A000000000000000000103 /* LauncherPanel.swift in Sources */,
+				F1A000000000000000000104 /* LauncherWindowController.swift in Sources */,
+				F1A000000000000000000105 /* HotkeyManager.swift in Sources */,
+				F1A000000000000000000106 /* ApplicationItem.swift in Sources */,
+				F1A000000000000000000107 /* ApplicationIndexer.swift in Sources */,
+				F1A000000000000000000108 /* ApplicationRowView.swift in Sources */,
+				F1A000000000000000000109 /* ApplicationSearcher.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		F1A000000000000000000501 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				F1A000000000000000000110 /* ApplicationSearcherTests.swift in Sources */,
+				F1A000000000000000000111 /* ApplicationItem.swift in Sources */,
+				F1A000000000000000000112 /* ApplicationSearcher.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		F1A000000000000000000610 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_TESTABILITY = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		F1A000000000000000000611 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		F1A000000000000000000612 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Flare/Info.plist;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flarelauncher.Flare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		F1A000000000000000000613 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				INFOPLIST_FILE = Flare/Info.plist;
+				MARKETING_VERSION = 0.1;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flarelauncher.Flare;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+		F1A000000000000000000614 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flarelauncher.FlareTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Debug;
+		};
+		F1A000000000000000000615 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_IDENTITY = "-";
+				CODE_SIGN_STYLE = Automatic;
+				GENERATE_INFOPLIST_FILE = YES;
+				PRODUCT_BUNDLE_IDENTIFIER = com.flarelauncher.FlareTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		F1A000000000000000000600 /* Build configuration list for PBXProject "Flare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F1A000000000000000000610 /* Debug */,
+				F1A000000000000000000611 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F1A000000000000000000601 /* Build configuration list for PBXNativeTarget "Flare" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F1A000000000000000000612 /* Debug */,
+				F1A000000000000000000613 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		F1A000000000000000000602 /* Build configuration list for PBXNativeTarget "FlareTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F1A000000000000000000614 /* Debug */,
+				F1A000000000000000000615 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = F1A000000000000000000001 /* Project object */;
+}
