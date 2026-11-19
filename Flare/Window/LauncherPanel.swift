@@ -2,11 +2,13 @@ import AppKit
 
 final class LauncherPanel: NSPanel {
     var onCancel: (() -> Void)?
+    private let acceptsKeyboard: Bool
 
-    override var canBecomeKey: Bool { true }
+    override var canBecomeKey: Bool { acceptsKeyboard }
     override var canBecomeMain: Bool { false }
 
-    init(size: NSSize) {
+    init(size: NSSize, acceptsKeyboard: Bool = true) {
+        self.acceptsKeyboard = acceptsKeyboard
         super.init(
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
@@ -14,16 +16,18 @@ final class LauncherPanel: NSPanel {
             defer: false
         )
 
-        title = "Flare"
+        title = acceptsKeyboard ? "Flare" : ""
         isFloatingPanel = true
         level = .floating
-        collectionBehavior = [.canJoinAllSpaces, .canJoinAllApplications, .ignoresCycle]
+        collectionBehavior = [.canJoinAllApplications, .ignoresCycle]
+        if acceptsKeyboard { collectionBehavior.insert(.canJoinAllSpaces) }
         hidesOnDeactivate = false
         isReleasedWhenClosed = false
         isMovable = false
         isOpaque = false
         backgroundColor = .clear
-        hasShadow = true
+        hasShadow = false
+        ignoresMouseEvents = !acceptsKeyboard
         animationBehavior = .none
     }
 

@@ -10,7 +10,9 @@ final class ApplicationRowHighlight: NSTableRowView {
     override var interiorBackgroundStyle: NSView.BackgroundStyle { .normal }
 
     override func drawSelection(in dirtyRect: NSRect) {
-        NSColor.controlAccentColor.withAlphaComponent(0.19).setFill()
+        let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
+        // Lift the brightness while letting the launcher's blurred backdrop show through.
+        NSColor.white.withAlphaComponent(isDark ? 0.14 : 0.34).setFill()
         NSBezierPath(roundedRect: bounds.insetBy(dx: 0, dy: 1), xRadius: 10, yRadius: 10).fill()
     }
 }

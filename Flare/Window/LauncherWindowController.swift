@@ -12,6 +12,7 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private static let errorMessageHeight: CGFloat = 25
 
     private let panel = LauncherPanel(size: NSSize(width: width, height: searchHeight + 1 + emptyMessageHeight))
+    private let motion = LauncherMotion(headerHeight: searchHeight)
     private let searchField = NSTextField()
     private let divider = NSBox()
     private let scrollView = NSScrollView()
@@ -26,7 +27,9 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private var contentHeight = searchHeight + 1 + emptyMessageHeight
 
     private var searcher = ApplicationSearcher(items: [])
-    private var icons: [URL: NSImage] = [:]
+    private var icons: [URL: CGImage] = [:]
+    private var bundledFrostedIcons: [String: CGImage] = [:]
+    private let rowIcons = NSCache<NSURL, NSImage>()
     private var duplicateNames: Set<String> = []
     private var results: [ApplicationItem] = []
     private var isRefreshing = false
@@ -38,8 +41,18 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private var presentationNumber = 0
     private(set) var isPresented = false
 
+    var usesFrostedIcons = true {
+        didSet {
+            guard usesFrostedIcons != oldValue else { return }
+            rowIcons.removeAllObjects()
+            guard !results.isEmpty else { return }
+            table.reloadData(forRowIndexes: IndexSet(integersIn: results.indices), columnIndexes: IndexSet(integer: 0))
+        }
+    }
+
     override init() {
         super.init()
+        rowIcons.countLimit = 32
         buildInterface()
         panel.delegate = self
         panel.onCancel = { [weak self] in self?.dismiss() }
@@ -48,19 +61,26 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
 
     func present() {
         guard !isPresented else { return }
+        motion.finish()
         isPresented = true
         presentationNumber += 1
         displayID = nil
-        positionPanel(centered: true)
+        positionPanel(keepTopEdge: false)
+        let animated = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        motion.prepareToReveal(in: panel, animated: animated)
         panel.makeKeyAndOrderFront(nil)
         panel.makeFirstResponder(searchField)
         if isPresented {
             observeDismissalEvents()
+            if animated { motion.reveal(in: panel) }
         }
     }
 
-    func dismiss() {
-        guard isPresented else { return }
+    func dismiss(animated: Bool = true) {
+        guard isPresented else {
+            if !animated { motion.finish() }
+            return
+        }
         isPresented = false
 
         if let outsideClickMonitor {
@@ -72,16 +92,31 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         }
         workspaceObservers.removeAll()
 
-        panel.orderOut(nil)
         panel.makeFirstResponder(nil)
+        if animated, panel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
+           let screen = panel.screen {
+            motion.close(from: panel, on: screen) { [weak self] in
+                self?.resetSearch()
+            }
+            panel.orderOut(nil)
+        } else {
+            panel.orderOut(nil)
+            motion.finish()
+            resetSearch()
+        }
+    }
+
+    private func resetSearch() {
         searchField.stringValue = ""
         launchError = nil
         updateResults()
     }
 
     func screenParametersDidChange() {
+        motion.finish()
         if isPresented {
-            positionPanel(centered: true)
+            positionPanel(keepTopEdge: false)
+            motion.prepareToReveal(in: panel, animated: false)
         }
     }
 
@@ -91,9 +126,10 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     }
 
     func replaceIndex(_ index: ApplicationIndex) {
-        let iconSize = NSSize(width: ApplicationIndexer.iconSize, height: ApplicationIndexer.iconSize)
         searcher = index.searcher
-        icons = index.icons.mapValues { NSImage(cgImage: $0, size: iconSize) }
+        icons = index.icons
+        bundledFrostedIcons = index.bundledFrostedIcons
+        rowIcons.removeAllObjects()
         duplicateNames = index.duplicateNames
         isRefreshing = false
         updateResults(reload: true)
@@ -155,9 +191,29 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
             ?? ApplicationRowView(frame: .zero)
         let app = results[row]
         let location = duplicateNames.contains(app.name) ? (app.url.path as NSString).abbreviatingWithTildeInPath : nil
-        view.configure(with: app, icon: icons[app.url] ?? fallbackIcon, location: location)
+        view.configure(with: app, icon: rowIcon(for: app), location: location)
         view.showsReturnSymbol = row == tableView.selectedRow
         return view
+    }
+
+    private func rowIcon(for app: ApplicationItem) -> NSImage? {
+        let key = app.url as NSURL
+        if let image = rowIcons.object(forKey: key) { return image }
+
+        let original = icons[app.url]
+        let bitmap = if usesFrostedIcons {
+            app.bundleIdentifier.flatMap { bundledFrostedIcons[$0] }
+                ?? FrostedIconRenderer.render(original, identifier: app.bundleIdentifier ?? app.name)
+                ?? original
+        } else {
+            original
+        }
+        guard let bitmap else { return fallbackIcon }
+
+        let size = ApplicationIndexer.iconSize
+        let image = NSImage(cgImage: bitmap, size: NSSize(width: size, height: size))
+        rowIcons.setObject(image, forKey: key)
+        return image
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -168,15 +224,10 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     }
 
     private func buildInterface() {
-        let surface = NSVisualEffectView()
-        surface.material = .popover
-        surface.blendingMode = .behindWindow
-        surface.state = .active
-        surface.wantsLayer = true
-        surface.layer?.cornerRadius = 20
-        surface.layer?.cornerCurve = .continuous
-        surface.layer?.masksToBounds = true
-        panel.contentView = surface
+        panel.contentView = motion.canvas
+        motion.updateLayout(in: panel)
+        let header = motion.header
+        let results = motion.results
 
         let magnifier = NSImageView()
         magnifier.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: nil)?
@@ -207,30 +258,32 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         messageLabel.translatesAutoresizingMaskIntoConstraints = false
         messageArea.addSubview(messageLabel)
 
-        for view in [magnifier, searchField, divider, scrollView, messageArea] as [NSView] {
+        header.addSubview(magnifier)
+        header.addSubview(searchField)
+        for view in [divider, scrollView, messageArea] as [NSView] {
             view.translatesAutoresizingMaskIntoConstraints = false
-            surface.addSubview(view)
+            results.addSubview(view)
         }
 
         NSLayoutConstraint.activate([
-            magnifier.leadingAnchor.constraint(equalTo: surface.leadingAnchor, constant: 23),
-            magnifier.topAnchor.constraint(equalTo: surface.topAnchor, constant: 21),
+            magnifier.leadingAnchor.constraint(equalTo: header.leadingAnchor, constant: 23),
+            magnifier.topAnchor.constraint(equalTo: header.topAnchor, constant: 21),
             magnifier.widthAnchor.constraint(equalToConstant: 22),
             magnifier.heightAnchor.constraint(equalToConstant: 22),
             searchField.leadingAnchor.constraint(equalTo: magnifier.trailingAnchor, constant: 13),
-            searchField.trailingAnchor.constraint(equalTo: surface.trailingAnchor, constant: -23),
+            searchField.trailingAnchor.constraint(equalTo: header.trailingAnchor, constant: -23),
             searchField.centerYAnchor.constraint(equalTo: magnifier.centerYAnchor),
-            divider.topAnchor.constraint(equalTo: surface.topAnchor, constant: Self.searchHeight),
-            divider.leadingAnchor.constraint(equalTo: surface.leadingAnchor),
-            divider.trailingAnchor.constraint(equalTo: surface.trailingAnchor),
+            divider.topAnchor.constraint(equalTo: results.topAnchor),
+            divider.leadingAnchor.constraint(equalTo: results.leadingAnchor, constant: 22),
+            divider.trailingAnchor.constraint(equalTo: results.trailingAnchor, constant: -22),
             divider.heightAnchor.constraint(equalToConstant: 1),
             listTop,
             listBottom,
-            scrollView.leadingAnchor.constraint(equalTo: surface.leadingAnchor, constant: 11),
-            scrollView.trailingAnchor.constraint(equalTo: surface.trailingAnchor, constant: -11),
-            messageArea.leadingAnchor.constraint(equalTo: surface.leadingAnchor),
-            messageArea.trailingAnchor.constraint(equalTo: surface.trailingAnchor),
-            messageArea.bottomAnchor.constraint(equalTo: surface.bottomAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: results.leadingAnchor, constant: 11),
+            scrollView.trailingAnchor.constraint(equalTo: results.trailingAnchor, constant: -11),
+            messageArea.leadingAnchor.constraint(equalTo: results.leadingAnchor),
+            messageArea.trailingAnchor.constraint(equalTo: results.trailingAnchor),
+            messageArea.bottomAnchor.constraint(equalTo: results.bottomAnchor),
             messageHeight,
             messageLabel.leadingAnchor.constraint(equalTo: messageArea.leadingAnchor, constant: 23),
             messageLabel.trailingAnchor.constraint(equalTo: messageArea.trailingAnchor, constant: -23),
@@ -345,14 +398,15 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         if height != contentHeight {
             contentHeight = height
             if isPresented {
-                positionPanel(centered: false)
+                positionPanel(keepTopEdge: true)
             } else {
                 panel.setContentSize(NSSize(width: panel.frame.width, height: height))
+                motion.updateLayout(in: panel)
             }
         }
     }
 
-    private func positionPanel(centered: Bool) {
+    private func positionPanel(keepTopEdge: Bool) {
         let screens = NSScreen.screens
         let pointer = NSEvent.mouseLocation
         guard let screen = screens.first(where: { displayID != nil && $0.flareDisplayID == displayID })
@@ -364,7 +418,8 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         guard area.width > 32, area.height > Self.searchHeight + 25 else { return }
         let width = min(Self.width, area.width - 32)
         let height = min(contentHeight, area.height - 24)
-        let y = centered ? area.midY - height / 2 : panel.frame.maxY - height
+        let preferredCenter = area.midY + (area.maxY - area.midY) * 0.2
+        let y = keepTopEdge ? panel.frame.maxY - height : preferredCenter - height / 2
         let frame = NSRect(
             x: (area.midX - width / 2).rounded(),
             y: min(max(y.rounded(), area.minY + 12), area.maxY - height - 12),
@@ -373,6 +428,7 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         )
         if panel.frame != frame {
             panel.setFrame(frame, display: false)
+            motion.updateLayout(in: panel)
         }
     }
 
@@ -390,7 +446,7 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
             NSWorkspace.activeSpaceDidChangeNotification,
         ].map { name in
             center.addObserver(forName: name, object: nil, queue: .main) { [weak self] _ in
-                MainActor.assumeIsolated { self?.dismiss() }
+                MainActor.assumeIsolated { self?.dismiss(animated: name != NSWorkspace.activeSpaceDidChangeNotification) }
             }
         }
     }

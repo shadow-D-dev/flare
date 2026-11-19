@@ -1,9 +1,11 @@
 import AppKit
+import ImageIO
 
 struct ApplicationIndex: Sendable {
     let searcher: ApplicationSearcher
     let icons: [URL: CGImage]
     let duplicateNames: Set<String>
+    let bundledFrostedIcons: [String: CGImage]
 }
 
 enum ApplicationIndexer {
@@ -51,7 +53,10 @@ enum ApplicationIndexer {
             }
         }
 
-        return ApplicationIndex(searcher: ApplicationSearcher(items: items), icons: icons, duplicateNames: duplicateNames)
+        return ApplicationIndex(
+            searcher: ApplicationSearcher(items: items), icons: icons, duplicateNames: duplicateNames,
+            bundledFrostedIcons: loadFrostedIcons(in: ownBundleURL)
+        )
     }
 
     private static var defaultRoots: [URL] {
@@ -79,5 +84,21 @@ enum ApplicationIndexer {
         context.interpolationQuality = .high
         icon.draw(in: CGRect(x: 0, y: 0, width: pixels, height: pixels))
         return context.makeImage()
+    }
+
+    private static func loadFrostedIcons(in appURL: URL) -> [String: CGImage] {
+        guard let resources = Bundle(url: appURL)?.resourceURL,
+              let files = try? FileManager.default.contentsOfDirectory(
+                at: resources.appendingPathComponent("FrostedIcons", isDirectory: true),
+                includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
+              ) else { return [:] }
+
+        var icons: [String: CGImage] = [:]
+        for file in files where file.pathExtension == "png" {
+            guard let source = CGImageSourceCreateWithURL(file as CFURL, nil),
+                  let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
+            icons[file.deletingPathExtension().lastPathComponent] = image
+        }
+        return icons
     }
 }
