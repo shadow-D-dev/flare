@@ -5,7 +5,7 @@ struct ApplicationSearcher: Sendable {
         case exact, prefix, substring, wordPrefix, fuzzy
     }
 
-    private typealias Score = (tier: Int, penalty: Int, position: Int, remainder: Int)
+    private typealias Score = (tier: Int, namePriority: Int, penalty: Int, position: Int, remainder: Int)
 
     private struct SearchText: Sendable {
         private static let locale = Locale(identifier: "en_US_POSIX")
@@ -13,6 +13,8 @@ struct ApplicationSearcher: Sendable {
         let words: [Substring]
         let phrase: String
         let compact: String
+        let letters: [Character]
+        let initials: String
 
         init(_ text: String) {
             let folded = text.folding(options: [.caseInsensitive, .diacriticInsensitive, .widthInsensitive], locale: Self.locale)
@@ -20,20 +22,20 @@ struct ApplicationSearcher: Sendable {
             words = folded.split { $0.isWhitespace || $0.isPunctuation }
             phrase = words.joined(separator: " ")
             compact = words.count > 1 ? words.joined() : phrase
+            letters = Array(compact)
+            initials = String(words.compactMap(\.first))
         }
     }
 
     private struct Entry: Sendable {
         let application: ApplicationItem
         let name: SearchText
-        let letters: [Character]
-        let initials: String
+        let alternateName: SearchText?
 
         init(_ application: ApplicationItem) {
             self.application = application
             name = SearchText(application.name)
-            letters = Array(name.compact)
-            initials = String(name.words.compactMap(\.first))
+            alternateName = application.alternateName.map(SearchText.init)
         }
     }
 
@@ -54,13 +56,18 @@ struct ApplicationSearcher: Sendable {
         let query = SearchText(text)
         guard !query.compact.isEmpty else { return entries.prefix(limit).map(\.application) }
 
-        let letters = Array(query.compact)
         var best: [(score: Score, index: Int)] = []
         best.reserveCapacity(min(limit, entries.count))
 
         // The index already provides tie-breaking order. Keep only the requested number of matches.
         for (index, entry) in entries.enumerated() {
-            guard let score = Self.score(for: query, letters: letters, in: entry) else { continue }
+            var score = Self.score(for: query, in: entry.name, namePriority: 0)
+            if let alternateName = entry.alternateName,
+               let alternateScore = Self.score(for: query, in: alternateName, namePriority: 1),
+               score.map({ alternateScore < $0 }) ?? true {
+                score = alternateScore
+            }
+            guard let score else { continue }
             if best.count == limit, let last = best.last, score >= last.score { continue }
 
             let insertion = best.firstIndex { score < $0.score } ?? best.endIndex
@@ -71,35 +78,34 @@ struct ApplicationSearcher: Sendable {
         return best.map { entries[$0.index].application }
     }
 
-    private static func score(for query: SearchText, letters: [Character], in entry: Entry) -> Score? {
-        let remaining = entry.letters.count - letters.count
+    private static func score(for query: SearchText, in name: SearchText, namePriority: Int) -> Score? {
+        let remaining = name.letters.count - query.letters.count
         guard remaining >= 0 else { return nil }
 
-        let name = entry.name
         if name.phrase == query.phrase {
-            return (Rank.exact.rawValue, 0, 0, 0)
+            return (Rank.exact.rawValue, namePriority, 0, 0, 0)
         }
         if name.phrase.hasPrefix(query.phrase) || name.compact.hasPrefix(query.compact) {
-            return (Rank.prefix.rawValue, 0, 0, remaining)
+            return (Rank.prefix.rawValue, namePriority, 0, 0, remaining)
         }
         if let range = name.phrase.range(of: query.phrase, options: .literal) {
             let startsWord = name.phrase[..<range.lowerBound].last == " "
             let position = name.phrase.distance(from: name.phrase.startIndex, to: range.lowerBound)
-            return (Rank.substring.rawValue, startsWord ? 0 : 1, position, remaining)
+            return (Rank.substring.rawValue, namePriority, startsWord ? 0 : 1, position, remaining)
         }
         if name.phrase != name.compact || query.phrase != query.compact,
            let range = name.compact.range(of: query.compact, options: .literal) {
             let position = name.compact.distance(from: name.compact.startIndex, to: range.lowerBound)
-            return (Rank.substring.rawValue, 2, position, remaining)
+            return (Rank.substring.rawValue, namePriority, 2, position, remaining)
         }
-        if entry.initials.hasPrefix(query.compact) {
-            return (Rank.wordPrefix.rawValue, entry.initials.count - letters.count, 0, remaining)
+        if name.initials.hasPrefix(query.compact) {
+            return (Rank.wordPrefix.rawValue, namePriority, name.initials.count - query.letters.count, 0, remaining)
         }
         if query.words.count > 1, let match = orderedWordPrefixes(query.words, in: name.words) {
-            return (Rank.wordPrefix.rawValue, match.gaps, match.start, remaining)
+            return (Rank.wordPrefix.rawValue, namePriority, match.gaps, match.start, remaining)
         }
-        if let match = subsequence(letters, in: entry.letters) {
-            return (Rank.fuzzy.rawValue, match.gaps, match.start, remaining)
+        if let match = subsequence(query.letters, in: name.letters) {
+            return (Rank.fuzzy.rawValue, namePriority, match.gaps, match.start, remaining)
         }
         return nil
     }

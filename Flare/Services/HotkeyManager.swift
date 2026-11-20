@@ -2,28 +2,63 @@ import Carbon
 
 @MainActor
 final class HotkeyManager {
-    struct Shortcut {
-        let keyCode: UInt32
-        let modifiers: UInt32
-
-        static let optionSpace = Shortcut(keyCode: UInt32(kVK_Space), modifiers: UInt32(optionKey))
+    private struct Registration {
+        let shortcut: LauncherShortcut
+        let ref: EventHotKeyRef
+        let id: UInt32
     }
 
-    private let identifier = EventHotKeyID(signature: 0x464C4152, id: 1) // FLAR
+    private let signature: OSType = 0x464C4152 // FLAR
+    private let onPress: () -> Void
     private var handler: EventHandlerRef?
-    private var hotkey: EventHotKeyRef?
-    private var onPress: (() -> Void)?
+    private var registration: Registration?
+    private var nextID: UInt32 = 0
     private var isPressed = false
 
-    func register(_ shortcut: Shortcut, onPress: @escaping () -> Void) -> OSStatus {
-        unregister()
+    init(onPress: @escaping () -> Void) {
+        self.onPress = onPress
+    }
 
+    func register(_ shortcut: LauncherShortcut) -> OSStatus {
+        if let current = registration?.shortcut,
+           current.keyCode == shortcut.keyCode, current.modifiers == shortcut.modifiers {
+            return noErr
+        }
         let target = GetApplicationEventTarget()
+        if handler == nil {
+            let status = installHandler(on: target)
+            guard status == noErr else { return status }
+        }
+
+        // Keep the current shortcut registered until the replacement succeeds.
+        nextID &+= 1
+        let identifier = EventHotKeyID(signature: signature, id: nextID)
+        var replacement: EventHotKeyRef?
+        let status = RegisterEventHotKey(
+            shortcut.keyCode, shortcut.modifiers, identifier, target, UInt32(kEventHotKeyExclusive), &replacement
+        )
+        guard status == noErr, let replacement else {
+            if registration == nil { unregister() }
+            return status == noErr ? OSStatus(paramErr) : status
+        }
+        if let registration {
+            let status = UnregisterEventHotKey(registration.ref)
+            guard status == noErr else {
+                UnregisterEventHotKey(replacement)
+                return status
+            }
+        }
+        registration = Registration(shortcut: shortcut, ref: replacement, id: identifier.id)
+        isPressed = false
+        return noErr
+    }
+
+    private func installHandler(on target: EventTargetRef?) -> OSStatus {
         let events = [
             EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed)),
             EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyReleased)),
         ]
-        let handlerStatus = InstallEventHandler(target, { _, event, context in
+        return InstallEventHandler(target, { _, event, context in
             guard let event, let context else { return OSStatus(eventNotHandledErr) }
 
             var identifier = EventHotKeyID()
@@ -42,39 +77,27 @@ final class HotkeyManager {
                 manager.receive(signature: signature, id: id, pressed: pressed)
             }
         }, events.count, events, Unmanaged.passUnretained(self).toOpaque(), &handler)
-        guard handlerStatus == noErr else { return handlerStatus }
-
-        let status = RegisterEventHotKey(
-            shortcut.keyCode, shortcut.modifiers, identifier, target, UInt32(kEventHotKeyExclusive), &hotkey
-        )
-        if status == noErr {
-            self.onPress = onPress
-        } else {
-            unregister()
-        }
-        return status
     }
 
     func unregister() {
-        if let hotkey {
-            UnregisterEventHotKey(hotkey)
-            self.hotkey = nil
+        if let registration {
+            UnregisterEventHotKey(registration.ref)
+            self.registration = nil
         }
         if let handler {
             RemoveEventHandler(handler)
             self.handler = nil
         }
-        onPress = nil
         isPressed = false
     }
 
     private func receive(signature: OSType, id: UInt32, pressed: Bool) -> OSStatus {
-        guard signature == identifier.signature, id == identifier.id else { return OSStatus(eventNotHandledErr) }
+        guard signature == self.signature, id == registration?.id else { return OSStatus(eventNotHandledErr) }
 
         let shouldInvoke = pressed && !isPressed
         isPressed = pressed
         if shouldInvoke {
-            onPress?()
+            onPress()
         }
         return noErr
     }

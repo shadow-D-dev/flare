@@ -18,15 +18,22 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
 
     private static let appearancePreferenceKey = "LauncherAppearance"
     private static let frostedIconsPreferenceKey = "FrostedIconsEnabled"
+    private static let shortcutPreferenceKey = "LauncherShortcut"
 
-    private let launcher = LauncherWindowController()
-    private let hotkey = HotkeyManager()
+    private var launcher: LauncherWindowController?
+    private var applicationIndex = ApplicationIndex.empty
+    private var usesFrostedIcons = true
+    private lazy var hotkey = HotkeyManager { [weak self] in self?.toggleLauncher() }
     private let logger = Logger(subsystem: "com.flarelauncher.Flare", category: "Hotkey")
     private let scanQueue = DispatchQueue(label: "com.flarelauncher.Flare.discovery", qos: .userInitiated, autoreleaseFrequency: .workItem)
     private let refreshItem = NSMenuItem(title: "Refresh Applications", action: nil, keyEquivalent: "")
+    private let shortcutItem = NSMenuItem(title: "Launcher Shortcut…", action: nil, keyEquivalent: "")
+    private let shortcutNotice = NSMenuItem(title: "", action: nil, keyEquivalent: "")
     private let darkModeSwitch = NSSwitch()
     private let frostedIconsSwitch = NSSwitch()
     private var statusItem: NSStatusItem?
+    private var shortcut = LauncherShortcut.optionSpace
+    private var isRecordingShortcut = false
 
     private var isDarkMode: Bool {
         NSApp.effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
@@ -37,16 +44,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
             .flatMap(Appearance.init(rawValue:)) ?? .system
         NSApp.appearance = appearance.appKitAppearance
         UserDefaults.standard.register(defaults: [Self.frostedIconsPreferenceKey: true])
-        launcher.usesFrostedIcons = UserDefaults.standard.bool(forKey: Self.frostedIconsPreferenceKey)
+        usesFrostedIcons = UserDefaults.standard.bool(forKey: Self.frostedIconsPreferenceKey)
 
-        let hotkeyStatus = hotkey.register(.optionSpace) { [weak self] in
-            guard let self else { return }
-            if launcher.isPresented {
-                launcher.dismiss()
-            } else {
-                launcher.present()
-            }
-        }
+        shortcut = UserDefaults.standard.dictionary(forKey: Self.shortcutPreferenceKey)
+            .flatMap(LauncherShortcut.init(preference:)) ?? .optionSpace
+        updateShortcutMenu(error: registerShortcut(shortcut))
 
         let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
         if let button = item.button {
@@ -63,21 +65,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         let openItem = NSMenuItem(title: "Open Flare", action: #selector(openFlare), keyEquivalent: "")
         openItem.target = self
         menu.addItem(openItem)
-        if hotkeyStatus == noErr {
-            openItem.keyEquivalent = " "
-            openItem.keyEquivalentModifierMask = .option
-        } else {
-            let title = hotkeyStatus == eventHotKeyExistsErr ? "⌥ Space is already in use" : "⌥ Space shortcut unavailable"
-            let notice = NSMenuItem(title: title, action: nil, keyEquivalent: "")
-            notice.isEnabled = false
-            menu.addItem(notice)
-            logger.error("Could not register the global shortcut (OSStatus \(hotkeyStatus)).")
-        }
+        shortcutNotice.isEnabled = false
+        menu.addItem(shortcutNotice)
+        shortcutItem.target = self
+        shortcutItem.action = #selector(changeLauncherShortcut)
+        menu.addItem(shortcutItem)
         refreshItem.target = self
         refreshItem.action = #selector(refreshApplications)
         menu.addItem(refreshItem)
         darkModeSwitch.state = isDarkMode ? .on : .off
-        frostedIconsSwitch.state = launcher.usesFrostedIcons ? .on : .off
+        frostedIconsSwitch.state = usesFrostedIcons ? .on : .off
         menu.addItem(switchMenuItem("Dark Mode", control: darkModeSwitch, action: #selector(toggleDarkMode(_:))))
         menu.addItem(switchMenuItem("Frosted Icons", control: frostedIconsSwitch, action: #selector(toggleFrostedIcons(_:))))
         menu.addItem(.separator())
@@ -90,26 +87,79 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
-        launcher.present()
+        openFlare()
         return false
     }
 
     func applicationDidChangeScreenParameters(_ notification: Notification) {
-        launcher.screenParametersDidChange()
+        launcher?.screenParametersDidChange()
+    }
+
+    func applicationDidHide(_ notification: Notification) {
+        launcher?.dismiss(animated: false)
     }
 
     func applicationWillTerminate(_ notification: Notification) {
         hotkey.unregister()
-        launcher.dismiss(animated: false)
+        launcher?.dismiss(animated: false)
     }
 
     func menuWillOpen(_ menu: NSMenu) {
-        launcher.dismiss()
+        launcher?.dismiss()
         darkModeSwitch.state = isDarkMode ? .on : .off
     }
 
     @objc private func openFlare() {
+        guard !isRecordingShortcut, launcher?.isPresented != true else { return }
+        launcher?.dismiss(animated: false)
+
+        let launcher = LauncherWindowController(
+            index: applicationIndex, isRefreshing: !refreshItem.isEnabled, usesFrostedIcons: usesFrostedIcons
+        ) { [weak self] dismissedLauncher in
+            guard let self, self.launcher === dismissedLauncher else { return }
+            self.launcher = nil
+        }
+        self.launcher = launcher
         launcher.present()
+    }
+
+    private func toggleLauncher() {
+        guard !isRecordingShortcut else { return }
+        if let launcher, launcher.isPresented {
+            launcher.dismiss()
+        } else {
+            openFlare()
+        }
+    }
+
+    @objc private func changeLauncherShortcut() {
+        guard !isRecordingShortcut else { return }
+        isRecordingShortcut = true
+        defer { isRecordingShortcut = false }
+
+        ShortcutRecorder(current: shortcut) { newShortcut in
+            if let error = self.registerShortcut(newShortcut) { return error }
+            self.shortcut = newShortcut
+            UserDefaults.standard.set(newShortcut.preference, forKey: Self.shortcutPreferenceKey)
+            self.updateShortcutMenu(error: nil)
+            return nil
+        }.run()
+    }
+
+    private func registerShortcut(_ shortcut: LauncherShortcut) -> String? {
+        let status = hotkey.register(shortcut)
+        guard status != noErr else { return nil }
+        logger.error("Could not register the global shortcut (OSStatus \(status)).")
+        if status == eventHotKeyExistsErr {
+            return "\(shortcut.displayName) is already in use."
+        }
+        return "\(shortcut.displayName) couldn’t be registered."
+    }
+
+    private func updateShortcutMenu(error: String?) {
+        shortcutItem.title = "Launcher Shortcut (\(shortcut.displayName))…"
+        shortcutNotice.title = error ?? ""
+        shortcutNotice.isHidden = error == nil
     }
 
     private func switchMenuItem(_ title: String, control: NSSwitch, action: Selector) -> NSMenuItem {
@@ -150,8 +200,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
     }
 
     @objc private func toggleFrostedIcons(_ sender: Any?) {
-        let enabled = (sender as? NSSwitch).map { $0.state == .on } ?? !launcher.usesFrostedIcons
-        launcher.usesFrostedIcons = enabled
+        let enabled = (sender as? NSSwitch).map { $0.state == .on } ?? !usesFrostedIcons
+        usesFrostedIcons = enabled
+        launcher?.usesFrostedIcons = enabled
         frostedIconsSwitch.state = enabled ? .on : .off
         UserDefaults.standard.set(enabled, forKey: Self.frostedIconsPreferenceKey)
     }
@@ -160,14 +211,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate {
         guard refreshItem.isEnabled else { return }
         refreshItem.isEnabled = false
         refreshItem.title = "Refreshing Applications…"
-        launcher.indexWillRefresh()
+        launcher?.indexWillRefresh()
 
         let bundleURL = Bundle.main.bundleURL
         scanQueue.async { [weak self] in
             let index = ApplicationIndexer.scan(excluding: bundleURL)
             DispatchQueue.main.async { [weak self] in
                 guard let self else { return }
-                launcher.replaceIndex(index)
+                applicationIndex = index
+                launcher?.replaceIndex(index)
                 refreshItem.title = "Refresh Applications"
                 refreshItem.isEnabled = true
             }

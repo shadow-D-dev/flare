@@ -1,23 +1,20 @@
-import AppKit
-import ImageIO
+import Foundation
 
 struct ApplicationIndex: Sendable {
     let searcher: ApplicationSearcher
-    let icons: [URL: CGImage]
     let duplicateNames: Set<String>
-    let bundledFrostedIcons: [String: CGImage]
+    let frostedIconFiles: [String: URL]
+
+    static let empty = ApplicationIndex(searcher: ApplicationSearcher(items: []), duplicateNames: [], frostedIconFiles: [:])
 }
 
 enum ApplicationIndexer {
-    static let iconSize: CGFloat = 28
-
     static func scan(excluding ownBundleURL: URL, roots: [URL] = defaultRoots) -> ApplicationIndex {
         let fileManager = FileManager.default
         var seenPaths: Set<String> = [ownBundleURL.resolvingSymlinksInPath().standardizedFileURL.path]
         var seenNames: Set<String> = []
         var duplicateNames: Set<String> = []
         var items: [ApplicationItem] = []
-        var icons: [URL: CGImage] = [:]
 
         for root in roots {
             guard let enumerator = fileManager.enumerator(
@@ -40,12 +37,18 @@ enum ApplicationIndexer {
                           let executable = bundle.executableURL,
                           fileManager.isExecutableFile(atPath: executable.path) else { return }
 
-                    let name = ["CFBundleDisplayName", "CFBundleName"].lazy.compactMap { key in
+                    let filename = url.deletingPathExtension().lastPathComponent
+                    let bundleName = ["CFBundleDisplayName", "CFBundleName"].lazy.compactMap { key in
                         (bundle.object(forInfoDictionaryKey: key) as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
-                    }.first { !$0.isEmpty } ?? url.deletingPathExtension().lastPathComponent
+                    }.first { !$0.isEmpty } ?? filename
+                    // Chromium web app bundles keep their original site name after a Finder rename.
+                    let isChromiumWebApp = bundle.object(forInfoDictionaryKey: "CrAppModeShortcutID") is String
+                    let name = isChromiumWebApp ? filename : bundleName
 
-                    items.append(ApplicationItem(name: name, bundleIdentifier: bundle.bundleIdentifier, url: url))
-                    icons[url] = applicationIcon(at: path)
+                    items.append(ApplicationItem(
+                        name: name, bundleIdentifier: bundle.bundleIdentifier, url: url,
+                        alternateName: name == bundleName ? nil : bundleName
+                    ))
                     if !seenNames.insert(name).inserted {
                         duplicateNames.insert(name)
                     }
@@ -54,8 +57,8 @@ enum ApplicationIndexer {
         }
 
         return ApplicationIndex(
-            searcher: ApplicationSearcher(items: items), icons: icons, duplicateNames: duplicateNames,
-            bundledFrostedIcons: loadFrostedIcons(in: ownBundleURL)
+            searcher: ApplicationSearcher(items: items), duplicateNames: duplicateNames,
+            frostedIconFiles: findFrostedIconFiles(in: ownBundleURL)
         )
     }
 
@@ -63,41 +66,21 @@ enum ApplicationIndexer {
         [
             URL(fileURLWithPath: "/Applications", isDirectory: true),
             URL(fileURLWithPath: "/System/Applications", isDirectory: true),
+            URL(fileURLWithPath: "/System/Library/CoreServices/Applications", isDirectory: true),
             FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Applications", isDirectory: true),
         ]
     }
 
-    private static func applicationIcon(at path: String) -> CGImage? {
-        let icon = NSWorkspace.shared.icon(forFile: path)
-        let pixels = Int(iconSize * 2)
-        guard icon.isValid,
-              let context = CGContext(
-                data: nil, width: pixels, height: pixels, bitsPerComponent: 8, bytesPerRow: 0,
-                space: CGColorSpaceCreateDeviceRGB(), bitmapInfo: CGImageAlphaInfo.premultipliedLast.rawValue
-              ) else { return nil }
-
-        // Keep AppKit's icon object and drawing context on this worker. Only the small bitmap crosses to the UI.
-        let previousContext = NSGraphicsContext.current
-        NSGraphicsContext.current = NSGraphicsContext(cgContext: context, flipped: false)
-        defer { NSGraphicsContext.current = previousContext }
-
-        context.interpolationQuality = .high
-        icon.draw(in: CGRect(x: 0, y: 0, width: pixels, height: pixels))
-        return context.makeImage()
-    }
-
-    private static func loadFrostedIcons(in appURL: URL) -> [String: CGImage] {
+    private static func findFrostedIconFiles(in appURL: URL) -> [String: URL] {
         guard let resources = Bundle(url: appURL)?.resourceURL,
               let files = try? FileManager.default.contentsOfDirectory(
                 at: resources.appendingPathComponent("FrostedIcons", isDirectory: true),
                 includingPropertiesForKeys: nil, options: [.skipsHiddenFiles]
               ) else { return [:] }
 
-        var icons: [String: CGImage] = [:]
+        var icons: [String: URL] = [:]
         for file in files where file.pathExtension == "png" {
-            guard let source = CGImageSourceCreateWithURL(file as CFURL, nil),
-                  let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { continue }
-            icons[file.deletingPathExtension().lastPathComponent] = image
+            icons[file.deletingPathExtension().lastPathComponent] = file
         }
         return icons
     }

@@ -22,6 +22,13 @@
 		F1A000000000000000000114 /* LauncherMotion.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000214 /* LauncherMotion.swift */; };
 		F1A000000000000000000115 /* FrostedIcons in Resources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000215 /* FrostedIcons */; };
 		F1A000000000000000000116 /* FrostedIconRenderer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000216 /* FrostedIconRenderer.swift */; };
+		F1A000000000000000000117 /* ApplicationIndexerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000217 /* ApplicationIndexerTests.swift */; };
+		F1A000000000000000000118 /* ApplicationIndexer.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000208 /* ApplicationIndexer.swift */; };
+		F1A000000000000000000119 /* LauncherShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000218 /* LauncherShortcut.swift */; };
+		F1A000000000000000000120 /* ShortcutRecorder.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000219 /* ShortcutRecorder.swift */; };
+		F1A000000000000000000121 /* LauncherShortcut.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000218 /* LauncherShortcut.swift */; };
+		F1A000000000000000000122 /* LauncherShortcutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000220 /* LauncherShortcutTests.swift */; };
+		F1A000000000000000000123 /* ApplicationIconLoader.swift in Sources */ = {isa = PBXBuildFile; fileRef = F1A000000000000000000221 /* ApplicationIconLoader.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -42,6 +49,11 @@
 		F1A000000000000000000210 /* ApplicationSearcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearcher.swift; sourceTree = "<group>"; };
 		F1A000000000000000000211 /* FlareTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = FlareTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F1A000000000000000000212 /* ApplicationSearcherTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationSearcherTests.swift; sourceTree = "<group>"; };
+		F1A000000000000000000217 /* ApplicationIndexerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIndexerTests.swift; sourceTree = "<group>"; };
+		F1A000000000000000000218 /* LauncherShortcut.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherShortcut.swift; sourceTree = "<group>"; };
+		F1A000000000000000000219 /* ShortcutRecorder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ShortcutRecorder.swift; sourceTree = "<group>"; };
+		F1A000000000000000000220 /* LauncherShortcutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LauncherShortcutTests.swift; sourceTree = "<group>"; };
+		F1A000000000000000000221 /* ApplicationIconLoader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ApplicationIconLoader.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXGroup section */
@@ -99,6 +111,7 @@
 		F1A000000000000000000305 /* Services */ = {
 			isa = PBXGroup;
 			children = (
+				F1A000000000000000000221 /* ApplicationIconLoader.swift */,
 				F1A000000000000000000208 /* ApplicationIndexer.swift */,
 				F1A000000000000000000216 /* FrostedIconRenderer.swift */,
 				F1A000000000000000000210 /* ApplicationSearcher.swift */,
@@ -111,6 +124,7 @@
 			isa = PBXGroup;
 			children = (
 				F1A000000000000000000207 /* ApplicationItem.swift */,
+				F1A000000000000000000218 /* LauncherShortcut.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -120,6 +134,7 @@
 			children = (
 				F1A000000000000000000209 /* ApplicationRowView.swift */,
 				F1A000000000000000000213 /* LauncherSurface.swift */,
+				F1A000000000000000000219 /* ShortcutRecorder.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -127,7 +142,9 @@
 		F1A000000000000000000308 /* FlareTests */ = {
 			isa = PBXGroup;
 			children = (
+				F1A000000000000000000217 /* ApplicationIndexerTests.swift */,
 				F1A000000000000000000212 /* ApplicationSearcherTests.swift */,
+				F1A000000000000000000220 /* LauncherShortcutTests.swift */,
 			);
 			path = FlareTests;
 			sourceTree = "<group>";
@@ -216,6 +233,9 @@
 				F1A000000000000000000106 /* ApplicationItem.swift in Sources */,
 				F1A000000000000000000107 /* ApplicationIndexer.swift in Sources */,
 				F1A000000000000000000116 /* FrostedIconRenderer.swift in Sources */,
+				F1A000000000000000000119 /* LauncherShortcut.swift in Sources */,
+				F1A000000000000000000120 /* ShortcutRecorder.swift in Sources */,
+				F1A000000000000000000123 /* ApplicationIconLoader.swift in Sources */,
 				F1A000000000000000000108 /* ApplicationRowView.swift in Sources */,
 				F1A000000000000000000109 /* ApplicationSearcher.swift in Sources */,
 				F1A000000000000000000113 /* LauncherSurface.swift in Sources */,
@@ -227,9 +247,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				F1A000000000000000000117 /* ApplicationIndexerTests.swift in Sources */,
 				F1A000000000000000000110 /* ApplicationSearcherTests.swift in Sources */,
+				F1A000000000000000000118 /* ApplicationIndexer.swift in Sources */,
 				F1A000000000000000000111 /* ApplicationItem.swift in Sources */,
 				F1A000000000000000000112 /* ApplicationSearcher.swift in Sources */,
+				F1A000000000000000000121 /* LauncherShortcut.swift in Sources */,
+				F1A000000000000000000122 /* LauncherShortcutTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

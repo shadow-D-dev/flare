@@ -2,7 +2,7 @@ import CoreGraphics
 
 enum FrostedIconRenderer {
     private static let colorSpace = CGColorSpace(name: CGColorSpace.sRGB) ?? CGColorSpaceCreateDeviceRGB()
-    private static let pixels = Int(ApplicationIndexer.iconSize * 2)
+    private static let pixels = Int(ApplicationIconLoader.iconSize * 2)
     private static let palette: [(CGFloat, CGFloat, CGFloat)] = [
         (0.12, 0.64, 0.88), (0.50, 0.32, 0.79), (0.89, 0.24, 0.53),
         (0.19, 0.72, 0.49), (0.93, 0.48, 0.21), (0.28, 0.43, 0.87), (0.12, 0.67, 0.69)

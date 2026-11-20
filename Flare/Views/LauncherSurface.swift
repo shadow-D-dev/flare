@@ -48,10 +48,9 @@ final class LauncherSurface: NSView {
     private func updateFinish() {
         let isDark = effectiveAppearance.bestMatch(from: [.darkAqua, .aqua]) == .darkAqua
         backdrop.material = isDark ? .hudWindow : .popover
-        let tint = isDark
-            ? NSColor(srgbRed: 0.052, green: 0.071, blue: 0.116, alpha: 0.42)
-            : NSColor(srgbRed: 0.89, green: 0.92, blue: 0.97, alpha: 0.24)
-        contentHost.layer?.backgroundColor = tint.cgColor
+        contentHost.layer?.backgroundColor = isDark
+            ? nil
+            : NSColor(srgbRed: 0.89, green: 0.92, blue: 0.97, alpha: 0.24).cgColor
         rimAlpha = isDark ? 0.16 : 0.56
         updateRim()
     }

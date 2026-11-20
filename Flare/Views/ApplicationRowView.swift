@@ -57,7 +57,7 @@ final class ApplicationRowView: NSTableCellView {
             addSubview(view)
         }
 
-        let iconSize = ApplicationIndexer.iconSize
+        let iconSize = ApplicationIconLoader.iconSize
         NSLayoutConstraint.activate([
             iconView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 11),
             iconView.centerYAnchor.constraint(equalTo: centerYAnchor),
@@ -79,8 +79,12 @@ final class ApplicationRowView: NSTableCellView {
 
     func configure(with application: ApplicationItem, icon: NSImage?, location: String?) {
         nameLabel.stringValue = application.name
-        iconView.image = icon
+        updateIcon(icon)
         locationLabel.stringValue = location ?? ""
         locationLabel.toolTip = location
+    }
+
+    func updateIcon(_ icon: NSImage?) {
+        iconView.image = icon
     }
 }

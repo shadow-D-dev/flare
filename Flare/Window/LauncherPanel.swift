@@ -13,7 +13,7 @@ final class LauncherPanel: NSPanel {
             contentRect: NSRect(origin: .zero, size: size),
             styleMask: [.borderless, .nonactivatingPanel],
             backing: .buffered,
-            defer: false
+            defer: true
         )
 
         title = acceptsKeyboard ? "Flare" : ""

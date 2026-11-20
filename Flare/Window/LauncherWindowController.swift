@@ -26,44 +26,47 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private lazy var messageHeight = messageArea.heightAnchor.constraint(equalToConstant: Self.emptyMessageHeight)
     private var contentHeight = searchHeight + 1 + emptyMessageHeight
 
-    private var searcher = ApplicationSearcher(items: [])
-    private var icons: [URL: CGImage] = [:]
-    private var bundledFrostedIcons: [String: CGImage] = [:]
+    private var index: ApplicationIndex
     private let rowIcons = NSCache<NSURL, NSImage>()
-    private var duplicateNames: Set<String> = []
+    private var iconTask: Task<Void, Never>?
+    private let onDismiss: (LauncherWindowController) -> Void
     private var results: [ApplicationItem] = []
-    private var isRefreshing = false
+    private var isRefreshing: Bool
     private var isLaunching = false
     private var launchError: String?
     private var outsideClickMonitor: Any?
     private var workspaceObservers: [NSObjectProtocol] = []
     private var displayID: NSNumber?
-    private var presentationNumber = 0
     private(set) var isPresented = false
 
-    var usesFrostedIcons = true {
+    var usesFrostedIcons: Bool {
         didSet {
-            guard usesFrostedIcons != oldValue else { return }
+            guard usesFrostedIcons != oldValue, isPresented else { return }
             rowIcons.removeAllObjects()
-            guard !results.isEmpty else { return }
-            table.reloadData(forRowIndexes: IndexSet(integersIn: results.indices), columnIndexes: IndexSet(integer: 0))
+            table.reloadData()
+            loadResultIcons()
         }
     }
 
-    override init() {
+    init(
+        index: ApplicationIndex, isRefreshing: Bool, usesFrostedIcons: Bool,
+        onDismiss: @escaping (LauncherWindowController) -> Void
+    ) {
+        self.index = index
+        self.isRefreshing = isRefreshing
+        self.usesFrostedIcons = usesFrostedIcons
+        self.onDismiss = onDismiss
         super.init()
         rowIcons.countLimit = 32
         buildInterface()
         panel.delegate = self
         panel.onCancel = { [weak self] in self?.dismiss() }
-        updatePanelLayout()
+        updateResults()
     }
 
     func present() {
         guard !isPresented else { return }
-        motion.finish()
         isPresented = true
-        presentationNumber += 1
         displayID = nil
         positionPanel(keepTopEdge: false)
         let animated = !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
@@ -72,6 +75,7 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         panel.makeFirstResponder(searchField)
         if isPresented {
             observeDismissalEvents()
+            loadResultIcons()
             if animated { motion.reveal(in: panel) }
         }
     }
@@ -82,6 +86,9 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
             return
         }
         isPresented = false
+        iconTask?.cancel()
+        iconTask = nil
+        rowIcons.removeAllObjects()
 
         if let outsideClickMonitor {
             NSEvent.removeMonitor(outsideClickMonitor)
@@ -96,20 +103,15 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         if animated, panel.isVisible, !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion,
            let screen = panel.screen {
             motion.close(from: panel, on: screen) { [weak self] in
-                self?.resetSearch()
+                guard let self else { return }
+                onDismiss(self)
             }
-            panel.orderOut(nil)
+            panel.close()
         } else {
-            panel.orderOut(nil)
+            panel.close()
             motion.finish()
-            resetSearch()
+            onDismiss(self)
         }
-    }
-
-    private func resetSearch() {
-        searchField.stringValue = ""
-        launchError = nil
-        updateResults()
     }
 
     func screenParametersDidChange() {
@@ -121,16 +123,15 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     }
 
     func indexWillRefresh() {
+        guard isPresented else { return }
         isRefreshing = true
         updatePanelLayout()
     }
 
     func replaceIndex(_ index: ApplicationIndex) {
-        searcher = index.searcher
-        icons = index.icons
-        bundledFrostedIcons = index.bundledFrostedIcons
+        guard isPresented else { return }
+        self.index = index
         rowIcons.removeAllObjects()
-        duplicateNames = index.duplicateNames
         isRefreshing = false
         updateResults(reload: true)
         panel.contentView?.layoutSubtreeIfNeeded()
@@ -150,6 +151,7 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     }
 
     func controlTextDidChange(_ notification: Notification) {
+        guard isPresented else { return }
         launchError = nil
         updateResults()
     }
@@ -190,30 +192,41 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         let view = tableView.makeView(withIdentifier: ApplicationRowView.reuseIdentifier, owner: nil) as? ApplicationRowView
             ?? ApplicationRowView(frame: .zero)
         let app = results[row]
-        let location = duplicateNames.contains(app.name) ? (app.url.path as NSString).abbreviatingWithTildeInPath : nil
-        view.configure(with: app, icon: rowIcon(for: app), location: location)
+        let location = index.duplicateNames.contains(app.name) ? (app.url.path as NSString).abbreviatingWithTildeInPath : nil
+        view.configure(with: app, icon: rowIcons.object(forKey: app.url as NSURL) ?? fallbackIcon, location: location)
         view.showsReturnSymbol = row == tableView.selectedRow
         return view
     }
 
-    private func rowIcon(for app: ApplicationItem) -> NSImage? {
-        let key = app.url as NSURL
-        if let image = rowIcons.object(forKey: key) { return image }
-
-        let original = icons[app.url]
-        let bitmap = if usesFrostedIcons {
-            app.bundleIdentifier.flatMap { bundledFrostedIcons[$0] }
-                ?? FrostedIconRenderer.render(original, identifier: app.bundleIdentifier ?? app.name)
-                ?? original
-        } else {
-            original
+    private func loadResultIcons() {
+        iconTask?.cancel()
+        iconTask = nil
+        guard isPresented else { return }
+        let missing = results.filter { rowIcons.object(forKey: $0.url as NSURL) == nil }
+        guard !missing.isEmpty else { return }
+        let usesFrostedIcons = usesFrostedIcons
+        let frostedIconFiles = index.frostedIconFiles
+        iconTask = Task(priority: .userInitiated) { [weak self] in
+            for app in missing {
+                guard !Task.isCancelled else { return }
+                let bitmap = await ApplicationIconLoader.shared.icon(
+                    for: app, usesFrostedIcons: usesFrostedIcons,
+                    frostedIconFile: app.bundleIdentifier.flatMap { frostedIconFiles[$0] }
+                )
+                guard !Task.isCancelled, let self else { return }
+                displayIcon(bitmap, for: app)
+            }
         }
-        guard let bitmap else { return fallbackIcon }
+    }
 
-        let size = ApplicationIndexer.iconSize
-        let image = NSImage(cgImage: bitmap, size: NSSize(width: size, height: size))
-        rowIcons.setObject(image, forKey: key)
-        return image
+    private func displayIcon(_ bitmap: CGImage?, for app: ApplicationItem) {
+        let size = ApplicationIconLoader.iconSize
+        guard let image = bitmap.map({ NSImage(cgImage: $0, size: NSSize(width: size, height: size)) }) ?? fallbackIcon,
+              let row = results.firstIndex(of: app) else { return }
+        rowIcons.setObject(image, forKey: app.url as NSURL)
+        if let view = table.view(atColumn: 0, row: row, makeIfNecessary: false) as? ApplicationRowView {
+            view.updateIcon(image)
+        }
     }
 
     func tableViewSelectionDidChange(_ notification: Notification) {
@@ -320,10 +333,11 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     }
 
     private func updateResults(reload: Bool = false) {
-        let matches = searcher.search(searchField.stringValue, limit: Self.resultLimit)
+        let matches = index.searcher.search(searchField.stringValue, limit: Self.resultLimit)
         if reload || matches != results {
             results = matches
             table.reloadData()
+            loadResultIcons()
         }
         if !results.isEmpty {
             selectRow(0)
@@ -346,7 +360,6 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     @objc private func launchSelectedApplication() {
         guard results.indices.contains(table.selectedRow), !isLaunching else { return }
         let application = results[table.selectedRow]
-        let presentation = presentationNumber
         isLaunching = true
         launchError = nil
         updatePanelLayout()
@@ -359,14 +372,12 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
 
             do {
                 _ = try await NSWorkspace.shared.openApplication(at: application.url, configuration: configuration)
-                if self?.presentationNumber == presentation {
-                    self?.dismiss()
-                }
+                self?.dismiss()
             } catch {
                 guard let self else { return }
                 let failure = error as NSError
                 logger.error("Could not open an application (\(failure.domain, privacy: .public) \(failure.code)).")
-                guard isPresented, presentationNumber == presentation else { return }
+                guard isPresented else { return }
                 launchError = "Couldn’t open \(application.name). Try Refresh Applications."
                 updatePanelLayout()
             }
@@ -382,7 +393,7 @@ final class LauncherWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
             messageLabel.stringValue = launchError ?? ""
         } else {
             statusHeight = Self.emptyMessageHeight
-            if searcher.isEmpty {
+            if index.searcher.isEmpty {
                 messageLabel.stringValue = isRefreshing ? "Finding applications…" : "No applications found."
             } else {
                 messageLabel.stringValue = "No matching applications."

@@ -124,9 +124,8 @@ final class LauncherMotion: NSObject {
     func finish() {
         stopDisplayLink()
         if let closingPanel {
-            closingPanel.orderOut(nil)
             surface.removeFromSuperview()
-            canvas.addSubview(surface)
+            closingPanel.close()
             self.closingPanel = nil
         }
         renderedPanelFrame = nil
